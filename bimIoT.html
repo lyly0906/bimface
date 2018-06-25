@@ -1,0 +1,215 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+	<meta charset="UTF-8">
+	<meta name="viewport" content="width=device-width, initial-scale=1.0">
+	<meta http-equiv="X-UA-Compatible" content="ie=edge">
+	<title>BIMFACE SDK Sample - Get Properties (3D)</title>
+	<style media="screen">
+		html,
+		body {
+			margin: 0;
+			padding: 0;
+			width: 100%;
+			height: 100%;
+		}
+		
+		#view {
+			width: 90%;
+			height: 100%;
+			position: relative;
+		}
+	</style>
+	<!--reference the BIMFACE JavaScript SDK loader-->
+	<script src="http://static.bimface.com/developer/libs/jquery.js"></script>
+	<script src="https://static.bimface.com/api/BimfaceSDKLoader/BimfaceSDKLoader@latest-release.js" charset="utf-8"></script>
+</head>
+
+<body>
+	<div id="view"></div>
+	<script type="text/javascript">
+	var fid = 0;
+	function getUrlParam(name) {
+		var reg = new RegExp("(^|&)" + name + "=([^&]*)(&|$)"); //构造一个含有目标参数的正则表达式对象
+		var r = window.location.search.substr(1).match(reg);  //匹配目标参数
+		if (r != null) return unescape(r[2]); return null; //返回参数值
+	}  
+  	if(getUrlParam('fid')){
+		fid = getUrlParam('fid');
+	}
+	var AppKey = 'VHJS9K11uekU9p6lbXr9qfboJELepbav';
+	var ownUrl = 'http://biz.ulyncbiz.com/sample/bimfaceme.php';
+	var propertyUrl = 'https://api.bimface.com/data/element/property';
+	$.ajax({
+		type: "GET",
+		url: ownUrl+'?fun=backFollowViewToken&callback=&file=fileId&id='+fid,
+		dataType: "json",
+		success: function (res) {
+			if (res.code == 'success') {		
+				// Prepare your 3D view token
+				var viewToken = res.data;
+
+				// Create the config object of SDK loader. The SDK loader helps load correct version of BIMFACE SDK with given view token.	
+				var bimfaceLoaderConfig = new BimfaceSDKLoaderConfig();
+				bimfaceLoaderConfig.viewToken = viewToken;
+				// Load the SDK modules. Based on the default config, it'll load the latest uglified (release) version of modules of viewerlication, Viewer, Data and UI.
+				// And each module represents a JS file which will be loaded. For example, module UI means Glodon/Bimface@latest-release/UI.js will be added into this html.
+				BimfaceSDKLoader.load(bimfaceLoaderConfig, onSDKLoadSucceeded, onSDKLoadFailed);
+
+				// Callback of succeeded SDK loading
+				function onSDKLoadSucceeded(viewMetaData) {
+
+					// We need a 3D view.
+					if (viewMetaData.viewType != "3DView") {
+						return;
+					}
+
+					var authConfig = new Glodon.Bimface.Authentication.AuthenticationConfig();
+					authConfig.viewToken = viewToken;
+
+					var authManager = new Glodon.Bimface.Authentication.AuthenticationManager(authConfig);
+					authManager.authenticate(onAuthenticateSucceeded, onAuthenticateFailed);
+
+				};
+				// Callback of succeeded authentication
+				function onAuthenticateSucceeded(data) {
+
+					// Prepare your dom element to be the host of the BIMFACE viewerlication
+					var view = document.getElementById('view')
+
+					// Create the meta data manager to retrieve the properties of components.
+					var dataManagerConfig = new Glodon.Bimface.Data.MetaDataManagerConfig();
+					dataManagerConfig.viewToken = data.viewToken;
+					dataManagerConfig.modelId = data.modelId;
+					dataManagerConfig.modelType = data.modelType;
+					
+					var dataManager = new Glodon.Bimface.Data.MetaDataManager(dataManagerConfig);
+
+					// Create the config of viewer
+					var viewer3DConfig = Glodon.Bimface.Viewer.Viewer3DConfig();
+					viewer3DConfig.domElement = view;
+
+					// Got the events enum of viewer
+					var viewerEvents = Glodon.Bimface.Viewer.Viewer3DEvent;
+					// Create web viewer to fetch the component ID. And the MetaDataManager 
+					// doesn't depend on the viewer.
+					var viewer = new Glodon.Bimface.Viewer.Viewer3D(viewer3DConfig);
+					// Add your view with its token. Note that you can add multiple views.
+					viewer.addView(viewToken);
+
+					// Event handler of adding view
+					viewer.addEventListener(viewerEvents.ViewAdded, function () {
+						// Render all contents.
+						viewer.render();
+					});
+					$.ajax({
+						type: "GET",
+						url: ownUrl + '?fun=token&file=&id=',
+						dataType: "jsonp",
+						jsonp: "callback",
+						jsonpCallback:"success_jsonpCallback",
+						success: function (res) {
+							
+							if (res.code == 'success') {
+								AccessToken = res.data.token;
+								console.log(AccessToken);
+					
+								$.ajax({
+										type: "GET",
+										url: propertyUrl,
+										data: {"appKey":AppKey,"fileId":fid,"elementId":"305977"},
+										dataType: "json",
+										success: function (res) {
+											if(res.code == 'success'){
+												viewer.zoomToBoundingBox(res.data.boundingBox);
+												viewer.render();
+												var drawableConfig = new Glodon.Bimface.Plugins.Drawable.DrawableContainerConfig();
+												drawableConfig.viewer = viewer;
+												drawableContainer = new Glodon.Bimface.Plugins.Drawable.DrawableContainer(drawableConfig);
+												
+												var config = new Glodon.Bimface.Plugins.Drawable.CustomItemConfig();
+												var wd = 0;
+												var sd = 0;
+														$.ajax({
+															type: "GET",
+															url: "http://biz.ulyncbiz.com/sample/bimfaceme.php?fun=thingsTele&file=813c3a90-3df5-11e8-b4e1-255b51cae4c1&id=sd,wd3&callback=",
+															dataType: "jsonp",
+															jsonp: "callback",
+															success: function (res) {
+																sd = res.sd[0].value;
+																wd = res.wd3[0].value;
+																
+																// 创建自定义元素，可以是一个dom element，也可以是个字符串
+																 // ***************************************************
+																   var circle = document.createElement('div');
+																	circle.style.width = '120px';
+																	circle.style.height = '60px';
+																	circle.style.borderRadius = '10%';
+																	circle.style.background = '#fff';
+																	circle.innerText = '湿度：'+sd+'%,温度：'+wd + '℃';
+																	config.content = circle;
+																  // ****************************************************
+
+																  config.viewer = viewer;
+																  //增加一个Tip提示
+																  config.tooltip = 'my tip';
+																  config.worldPosition = '{x: -45359.69753437017, y: -84064.92602794441, z: 13647.287097813538}';
+
+																  //生成customItem实例
+																  var customItem = new Glodon.Bimface.Plugins.Drawable.CustomItem(config);
+
+																  //自定义标签的鼠标左键事件
+																  customItem.onClick(function(item) {
+																		alert('left click');
+																  });
+
+																  //自定义标签的鼠标右键事件
+																  customItem.onRightClick(function(item) {
+																		alert('right click');
+																  });
+
+																  // 添加自定义标签
+																  drawableContainer.addItem(customItem)
+																  //设置Tip的样式
+																  customItem.setTooltipStyle({border:'1px'});
+																
+															}
+															
+														});
+												
+											  }
+										},
+										beforeSend: function (xhr) {
+											xhr.setRequestHeader("Authorization", "bearer "+ AccessToken);
+										}
+									});
+							}
+						}
+					});	
+
+					// Event handler of components selection
+					viewer.addEventListener(viewerEvents.ComponentsSelectionChanged, function (selectionData) {
+						dataManager.getComponentProperty(selectionData.objectId, function (propertyData) {
+							console.log(JSON.stringify(propertyData));
+						});
+					});
+					
+				}
+
+				function onAuthenticateFailed(error) {
+
+				}
+
+				function onSDKLoadFailed(error) {
+
+				};
+			}
+		}
+});	
+		
+	</script>
+
+</body>
+
+</html>

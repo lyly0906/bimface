@@ -1,0 +1,504 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta http-equiv="X-UA-Compatible" content="ie=edge">
+  <title>BIMFACE SDK Sample - Web Application (Demo)</title>
+  <style media="screen">
+    html,
+    body {
+      margin: 0;
+      padding: 0;
+      width: 100%;
+      height: 100%;
+    }
+    
+    #app {
+      width: 80%;
+      height: 100%;
+      position: relative;
+    }
+  </style>
+  <!--reference the BIMFACE JavaScript SDK loader-->
+  <script src="http://static.bimface.com/developer/libs/jquery.js"></script>
+  <script src="https://static.bimface.com/api/BimfaceSDKLoader/BimfaceSDKLoader@latest-release.js" charset="utf-8"></script>
+  <link rel="stylesheet" href="http://resource.bimface.com/developer/css/20180322.preview.css">
+	  
+</head>
+
+<body>
+  <div id="app"></div>
+
+			
+			
+			
+			
+<div class="compare-content">
+          <div class="component-list">
+            <div class="tit" id="tags">修改构件列表</div>
+            <div class="type-mode">
+              <div class="type-box">
+                <div id="newok"></div>
+              </div>
+              <div class="type-box">
+                <div id="delok"></div>
+              </div>
+              <div class="type-box">
+                <div id="changeok"></div>
+              </div>
+            </div>
+          </div>
+			<div class="file-list" style="z-index:1000;position:absolute;margin-bottom:0px;">
+						<div class="tit">对比文件列表</div>
+						<ul>
+						  <li>
+							<div id="prevFile"></div>
+						  </li>
+						  <li>
+							<div id="follFile"></div>
+						  </li>
+						</ul>
+					  </div>
+					</div>
+		</div>		  
+  <script type="text/javascript">
+	$(window).resize(function(){
+          var h = $(window).height();
+          var w = $(window).width();
+          console.info("窗口高度：" + h + "; 窗口宽度：" + w);
+		  $('.compare-content').height(h);
+		  $('.type-mode').height(h - 203);
+    	});
+	var h = $(window).height();
+	var w = $(window).width();
+    $('.compare-content').height(h);
+    $('.type-mode').height(h - 203);
+	$('#app').width(w - 360);	
+	$('#tags').on('click',function(){
+		$('.compare-content').width(10);
+		$('#app').width(w - 10);
+		$('.component-list').hide();
+		$('.file-list').hide();
+	});
+	
+	function getUrlParam(name) {
+		var reg = new RegExp("(^|&)" + name + "=([^&]*)(&|$)"); //构造一个含有目标参数的正则表达式对象
+		var r = window.location.search.substr(1).match(reg);  //匹配目标参数
+		if (r != null) return unescape(r[2]); return null; //返回参数值
+	}	
+	
+	var AppKey = 'VHJS9K11uekU9p6lbXr9qfboJELepbav';
+	var AccessToken = '';
+		
+    // Prepare your view token, it could be any view type.
+    //var viewToken = '8537d5c90e094f1da97ac0ee60c11cbe';
+
+	// 使用compareId换取的几何差异模型的viewToken
+	//var viewTokenDiff = 'f3a373e540be4fef8ab41e7b1937ce5c';
+
+	var compareId = '1309486452802496';
+	if(getUrlParam('compareid')){
+		compareId = getUrlParam('compareid');
+	}
+	
+	var previousfid = '1309482295222816'; // 修改前的文件
+	var followingfid = '1309485460693440'; // 修改后的文件
+	
+	if(getUrlParam('previousfid')){
+		previousfid = getUrlParam('previousfid');
+	}	
+	if(getUrlParam('followingfid')){
+		followingfid = getUrlParam('followingfid');
+	}		
+	
+	var propertyUrl = 'https://api.bimface.com/data/element/property';
+	var compareStatus = 'https://api.bimface.com/compare';
+	var compareUrl = 'https://api.bimface.com/data/compare?compareId='+compareId;  //'http://192.168.2.128:9004/eg-quick/compare/data/element'; //
+	var metadataUrl = 'https://file.bimface.com/metadata';
+	var ownUrl = 'http://biz.ulyncbiz.com/sample/bimfaceme.php';
+	
+	$.ajax({
+		type: "GET",
+		url: ownUrl + '?fun=token&file=&id=',
+		dataType: "jsonp",
+		jsonp: "callback",
+		jsonpCallback:"success_jsonpCallback",
+		success: function (res) {
+			
+			if (res.code == 'success') {
+				AccessToken = res.data.token;
+				console.log(AccessToken);
+
+	
+	
+				/*$.ajax({ //注释通过对比结果得到前后文件
+					type: "GET",
+					url: compareUrl,
+					dataType: "json",
+					success: function (res) {
+						console.log(res);
+						//if (res.code == 'success') {  // 有可能没有对比结果集
+						  (function () {
+							this.compareList = res.data;
+							console.log(res.data);
+							
+							var datas = eval('('+ origin + ')'); 
+							//var datas = res;
+							//console.log(datas.data.newItems);
+							//新增
+							var previousfid = '';
+							var followingfid = '';
+
+							$.each(datas.data.newItems.categories,function(i,value){
+								
+								$.each(value.elements,function(j,value1){
+									if(value1.previousFileId)
+										previousfid = value1.previousFileId;
+									if(value1.followingFileId)	
+										followingfid = value1.followingFileId; 
+								});
+
+							});
+							
+							//删除
+
+							$.each(datas.data.deleteItems.categories,function(i,value){
+
+								$.each(value.elements,function(j,value1){					
+									if(value1.previousFileId)
+										previousfid = value1.previousFileId;
+									if(value1.followingFileId)	
+										followingfid = value1.followingFileId; 								
+								});
+
+							});
+
+							
+							//修改
+							$.each(datas.data.changeItems.categories,function(i,value){
+								$.each(value.elements,function(j,value1){					
+									if(value1.previousFileId)
+										previousfid = value1.previousFileId;
+									if(value1.followingFileId)	
+										followingfid = value1.followingFileId; 							
+								});
+							});*/ //注释通过对比结果得到前后文件
+
+							
+							console.log(previousfid+'|'+followingfid);	
+							//http://www.zl.com/bimface.php?fun=backFollowViewToken&file=fileId&id=1309485460693440
+							$.ajax({
+								type: "GET",
+								url: ownUrl+'?fun=backMetaData&file=&callback=&id='+previousfid,
+								dataType: "json",
+								success: function (resx) {
+									if (resx.code == 'success') {
+										var prevFile = '<a href="javascript:void(0)" onclick="preview('+ previousfid +')">详情</a><span>更改前：</span>'+ resx.data.name +'<br /><span>fileId：</span>'+ previousfid;
+									}
+									$('#prevFile').html(prevFile);
+								}
+							});
+							
+							$.ajax({
+								type: "GET",
+								url: ownUrl+'?fun=backMetaData&file=&callback=&id='+followingfid,
+								dataType: "json",
+								success: function (resx) {
+									if (resx.code == 'success') {
+										var prevFile = '<a href="javascript:void(0)" onclick="preview('+ followingfid +')">详情</a><span>更改后：</span>'+ resx.data.name +'<br /><span>fileId：</span>'+ followingfid;
+									}
+									$('#follFile').html(prevFile);
+								}
+							});
+							
+							
+							
+							// 得到修改后文件的viewtoken
+							$.ajax({
+								type: "GET",
+								url: ownUrl+'?fun=backFollowViewToken&callback=&file=fileId&id='+followingfid,
+								dataType: "json",
+								success: function (res) {
+									if (res.code == 'success') {
+
+										//console.log(res.data);
+										// 初始化显示组件
+										var options = new BimfaceSDKLoaderConfig();
+										options.viewToken = res.data;  // viewtoken
+										BimfaceSDKLoader.load(options, successCallback, failureCallback);
+
+										function successCallback(viewMetaData) {
+
+											// 获取DOM元素
+											var dom4Show = document.getElementById('app');
+											var webAppConfig = new Glodon.Bimface.Application.WebApplication3DConfig();
+											webAppConfig.domElement = dom4Show;
+											
+											// 创建WebApplication
+											var appEvents = Glodon.Bimface.Application.WebApplication3DEvent;
+											var app = new Glodon.Bimface.Application.WebApplication3D(webAppConfig);
+											
+											var viewer3D = app.getViewer();
+											// 添加修改后的模型
+											app.addView(res.data);
+											
+											// 监听添加view完成的事件
+											app.addEventListener(Glodon.Bimface.Application.WebApplication3DEvent.ViewAdded, function () {
+											//var _this2 = this;
+											//var that = this;
+												$.ajax({
+													type: "GET",
+													url: ownUrl+'?fun=backFollowViewToken&callback=&file=compareId&id='+compareId,
+													dataType: "json",
+													success: function (res) {
+														if (res.code == 'success') {
+															getResult(app,res,viewer3D);		
+														} // res
+													}//success
+												});
+												
+											});
+											
+											// 初始化DrawableContainer
+										   var drawableConfig = new Glodon.Bimface.Plugins.Drawable.DrawableContainerConfig();
+										   drawableConfig.viewer = viewer3D;
+										   drawableContainer = new Glodon.Bimface.Plugins.Drawable.DrawableContainer(drawableConfig);
+										   app.addEventListener(appEvents.ViewAdded, function() {
+												app.render();
+										   });
+											console.log(res.data);
+											app.addEventListener(appEvents.ComponentsSelectionChanged, function(objectData) {
+												console.log(objectData);
+												if(!objectData.worldPosition)return
+												var config = new Glodon.Bimface.Plugins.Drawable.CustomItemConfig();
+												
+														$.ajax({
+															type: "GET",
+															url: "http://180.76.184.72:8089/api/plugins/telemetry/DEVICE/4e49f4a0-31a3-11e8-bb44-110b2f07ba7a/values/timeseries?keys=sd,wd",
+															dataType: "json",
+															contentType: "application/json; charset=utf-8",
+															beforeSend: function (xhr) {
+																xhr.setRequestHeader("X-Authorization", "Bearer eyJhbGciOiJIUzUxMiJ9.eyJzdWIiOiI1ODkyNjMzMEBxcS5jb20iLCJzY29wZXMiOlsiVEVOQU5UX0FETUlOIl0sInVzZXJJZCI6IjJkYzI5ZmMwLWQ0ZGQtMTFlNy1hN2IzLTc1ODQwYTAzNzBjOCIsImVuYWJsZWQiOnRydWUsImlzUHVibGljIjpmYWxzZSwidGVuYW50SWQiOiIxYjRiOWE5MC1kNGRkLTExZTctYTdiMy03NTg0MGEwMzcwYzgiLCJjdXN0b21lcklkIjoiMTM4MTQwMDAtMWRkMi0xMWIyLTgwODAtODA4MDgwODA4MDgwIiwiaXNzIjoidGhpbmdzYm9hcmQuaW8iLCJpYXQiOjE1MjIyMjU4MDIsImV4cCI6MTUzMTIyNTgwMn0.y2LE_ucluNYivUcDBJN2DuoDrMN12vpQHg6yvon6ABDk7f1mfc57I6poXUF-sjkG2GYhd6fw0f_d1KYP1RSmjw");
+															},
+															success: function (res) {
+																alert(res);
+															}
+															
+														});
+												 // 创建自定义元素，可以是一个dom element，也可以是个字符串
+												 // ***************************************************
+												   var circle = document.createElement('div');
+													circle.style.width = '80px';
+													circle.style.height = '32px';
+													circle.style.borderRadius = '10%';
+													circle.style.background = '#fff';
+													circle.innerText = '自定义标签';
+													config.content = circle;
+												  // ****************************************************
+
+												  config.viewer = viewer3D;
+												  //增加一个Tip提示
+												  config.tooltip = 'my tip';
+												  config.worldPosition = objectData.worldPosition;
+
+												  //生成customItem实例
+												  var customItem = new Glodon.Bimface.Plugins.Drawable.CustomItem(config);
+
+												  //自定义标签的鼠标左键事件
+												  customItem.onClick(function(item) {
+														alert('left click');
+												  });
+
+												  //自定义标签的鼠标右键事件
+												  customItem.onRightClick(function(item) {
+														alert('right click');
+												  });
+
+												  // 添加自定义标签
+												  drawableContainer.addItem(customItem)
+												  //设置Tip的样式
+												  customItem.setTooltipStyle({border:'1px'});
+												});
+
+											//点击check 显示和隐藏部件
+											//console.log("asdfasdf");
+
+											var that = this;
+											var viewer3D = app.getViewer();
+											$('body').on('click', '.title', function () {
+												$(this).next().toggle();
+												$(this).find('.icon').toggleClass('close');
+											});
+
+											$('body').on('click', '.categories .arrow', function () {
+												$(this).toggleClass('close');
+												$(this).parent().next().toggleClass('close');
+											 });
+
+											$('body').on('click', '.elements .check', function () {
+												$(this).toggleClass('checked');
+												var oid = $(this).parent().attr('data-oid');
+												var index = that.allArray.indexOf(oid);
+												if (index > -1) {
+												  that.allArray.splice(index, 1);
+												  viewer3D.hideComponents([oid]);
+												  viewer3D.render();
+												} else {
+												  that.allArray.push(oid);
+												  viewer3D.showComponents([oid]);
+												  viewer3D.render();
+												}
+											 });
+										}
+
+										function failureCallback(error) {
+											console.log(error);
+										};
+									}
+								}
+							});	
+								
+						/*})();   //注释通过对比结果得到前后文件
+							
+						//}
+					},
+					beforeSend: function (xhr) {
+						xhr.setRequestHeader("Authorization", "bearer "+ AccessToken);
+					}
+				});*/ //注释通过对比结果得到前后文件
+	
+				}
+		}
+	});	
+
+	function getResult(app,res,viewer3D){
+		// 从WebApplication获取viewer3D对象
+
+	
+		// 添加模型对比差异部分
+		viewer3D.addView(res.data);
+		viewer3D.render();
+		$.ajax({
+			type: "GET",
+			url: ownUrl+'?fun=compareData&file=&callback=&id='+compareId,
+			dataType: "jsonp",
+			jsonp: "callback",	
+			success: function (res) {
+				if (res.code == 'success') {
+				  (function () {
+					this.compareList = res.data;
+					//console.log(res.data);
+					
+					//var datas = eval('('+ origin + ')'); 
+					var datas = res;
+					console.log(datas.data.newItems);
+					//新增
+					var newi = '<div class="title"><i class="icon arrow"></i><i class="icon-type new"></i>新增构件（'+ datas.data.newItems.itemCount +'）</div><ul class="type-ul" id="addElement">';
+					$.each(datas.data.newItems.categories,function(i,value){
+						newi += '<li><div class="categories"><i class="arrow"></i>'+ value.categoryName +'</div><ul>';
+						$.each(value.elements,function(j,value1){
+							newi += '<li><div class="elements" data-oid="'+ value1.followingElementId + '" data-oidx="'+ value1.followingElementId + '" data-fid="'+ value1.followingFileId + '"><i class="check checked"></i><span>'+ value1.name +'</span></div></li>';
+						});
+						newi += '</ul>';
+					});
+					newi += '</li></ul>';
+					$('#newok').html(newi);
+					
+					newi = '';
+					//删除
+					newi = '<div class="title"><i class="icon arrow"></i><i class="icon-type remove"></i>删除构件（'+ datas.data.deleteItems.itemCount +'）</div><ul class="type-ul" id="removeElement">';
+					$.each(datas.data.deleteItems.categories,function(i,value){
+						newi += '<li><div class="categories"><i class="arrow"></i>'+ value.categoryName +'</div><ul>';
+						$.each(value.elements,function(j,value1){
+							newi += '<li><div class="elements" data-oid="'+ value1.previousElementId + '" data-oidx="'+ value1.previousElementId + '" data-fid="'+ value1.previousFileId + '"><i class="check checked"></i><span>'+ value1.name +'</span></div></li>';						
+						});
+						newi += '</ul>';
+					});
+					newi += '</li></ul>';
+				
+					$('#delok').html(newi);
+					
+					//修改
+					newi = '';
+					newi = '<div class="title"><i class="icon arrow"></i><i class="icon-type revise"></i>修改构件（'+ datas.data.changeItems.itemCount +'）</div><ul class="type-ul" id="reviseElement">';
+					$.each(datas.data.changeItems.categories,function(i,value){
+						newi += '<li><div class="categories"><i class="arrow"></i>'+ value.categoryName +'</div><ul>';
+						$.each(value.elements,function(j,value1){
+							newi += '<li><div class="categories"><i class="arrow"></i>'+ value1.name +'</div><ul><li><div class="elements" data-oid="'+ value1.previousFileId + '.' + value1.previousElementId +'" data-oidx="'+ value1.previousElementId +'" data-fid="'+ value1.previousFileId + '"><i class="check checked"></i><span>修改前构件</span></div><div class="elements" data-oid="'+ value1.followingElementId + '" data-oidx="'+ value1.followingElementId + '" data-fid="'+ value1.followingFileId + '"><i class="check checked"></i><span>修改后构件</span></div></li></ul></li>';						
+						});
+						newi += '</ul>';
+					});
+					newi += '</li></ul>';
+					
+					$('#changeok').html(newi);														
+					
+					
+					
+					
+					var addArray = [],
+						removeArray = [],
+						reviseArray = [];
+
+					$('#addElement .elements').each(function () {
+					  addArray.push($(this).attr('data-oidx'));
+					});
+					$('#removeElement .elements').each(function () {
+					  removeArray.push($(this).attr('data-oidx'));
+					});
+					$('#reviseElement .elements').each(function () {
+					  reviseArray.push($(this).attr('data-oid'));
+					});
+					this.allArray = addArray.concat(removeArray).concat(reviseArray);
+					console.log(this.allArray);
+					viewer3D.overrideComponentsColorById(addArray, new Glodon.Web.Graphics.Color(0, 164, 58, 1));
+					viewer3D.overrideComponentsColorById(removeArray, new Glodon.Web.Graphics.Color(253, 2, 0, 1));
+					viewer3D.overrideComponentsColorById(reviseArray, new Glodon.Web.Graphics.Color(234, 208, 56, 1));
+					viewer3D.isolateComponentsById(this.allArray, Glodon.Bimface.Viewer.IsolateOption.MakeOthersTranslucent);
+					viewer3D.render();
+					
+					
+					
+							
+					//点击元素直接定位到目标	  
+						  
+					$('body').on('click', '.elements span', function () {
+						var oid = $(this).parent().attr('data-oidx');
+						var fid = $(this).parent().attr('data-fid');
+
+						$.ajax({
+							type: "GET",
+							url: propertyUrl,
+							data: {"appKey":AppKey,"fileId":fid,"elementId":oid},
+							dataType: "json",
+							success: function (res) {
+								if(res.code == 'success'){
+									viewer3D.zoomToBoundingBox(res.data.boundingBox);
+									viewer3D.render();
+								  }
+							},
+							beforeSend: function (xhr) {
+								xhr.setRequestHeader("Authorization", "bearer "+ AccessToken);
+							}
+						});
+					});
+						  
+				  })();
+				  
+				  
+				}
+			},
+			beforeSend: function (xhr) {
+				xhr.setRequestHeader("Authorization", "bearer "+ AccessToken);
+			}
+		});	
+	}
+	function preview(fileId){
+        window.open('http://biz.ulyncbiz.com/sample/Bim3D.html?fid=' + fileId);
+    }
+	
+  </script>
+</body>
+
+</html>

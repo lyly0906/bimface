@@ -1,0 +1,91 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta http-equiv="Content-Type" content="text/html; charset=utf-8"/>
+<meta name="renderer" content="webkit">
+<meta http-equiv="X-UA-Compatible" content="ie=edge">
+<title>your page title</title>
+<!-- 引用BIMFACE的JavaScript显示组件库 -->
+<script src="https://static.bimface.com/api/BimfaceSDKLoader/BimfaceSDKLoader@latest-release.js" charset="utf-8"></script>
+</head>
+
+<body>
+
+<!-- 定义DOM元素，用于在该DOM元素中显示模型或图纸 -->
+<div id="domId" style="width:800px; height:600px"></div>
+
+<script type="text/javascript">
+
+	// 指定待显示的模型或图纸（viewToken从服务端获取）
+	var viewToken = '586bde26f8ad4e68a1b8a0b6e8427760';
+	
+	// 初始化显示组件
+	var options = new BimfaceSDKLoaderConfig();
+	options.viewToken = viewToken;
+	BimfaceSDKLoader.load(options, successCallback, failureCallback);
+	
+	function successCallback(viewMetaData) {		
+		
+		if (viewMetaData.viewType == "dwgView") {
+		
+			// ======== 判断是否为2D图纸 ========
+		
+			// 获取DOM元素
+			var dom4Show = document.getElementById('domId');
+			var webAppConfig = new Glodon.Bimface.Application.WebApplication2DConfig();
+			webAppConfig.domElement = dom4Show;
+	
+			// 创建WebApplication
+			var app = new Glodon.Bimface.Application.WebApplication2D(webAppConfig);
+	
+			// 添加待显示的图纸
+			app.load(viewToken);
+	
+			// 从WebApplication获取viewer2D对象
+			var viewer2D = app.getViewer();
+			
+			// 调用viewer2D对象的Method，可以继续扩展功能
+			// your code
+			
+		} else if (viewMetaData.viewType == "3DView") {
+		
+			// ======== 判断是否为3D模型 ========
+		
+			// 获取DOM元素
+			var dom4Show = document.getElementById('domId');
+			var webAppConfig = new Glodon.Bimface.Application.WebApplication3DConfig();
+			webAppConfig.domElement = dom4Show;
+	
+			// 创建WebApplication
+			var app = new Glodon.Bimface.Application.WebApplication3D(webAppConfig);
+	
+			// 添加待显示的模型
+			app.addView(viewToken);
+	
+			// 监听添加view完成的事件
+			app.addEventListener(Glodon.Bimface.Application.WebApplication3DEvent.ViewAdded, function () {
+	
+				// 渲染3D模型
+				app.render();
+	
+				// 从WebApplication获取viewer3D对象
+				var viewer3D = app.getViewer();
+	
+				// 调用viewer3D对象的Method，可以继续扩展功能
+				// eg.
+				// viewer3D.hideViewHouse();
+			});
+	
+			// 监听添加view进行中的时间，可获取添加进度
+			app.addEventListener(Glodon.Bimface.Application.WebApplication3DEvent.ViewLoading, function (progress) {
+				console.log(progress);
+			});
+		}
+	}
+	
+	function failureCallback(error) {
+		console.log(error);
+	};
+</script>
+</body>
+</html>

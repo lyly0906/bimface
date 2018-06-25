@@ -1,0 +1,344 @@
+<html>
+<head>
+  <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+  <title>upfile</title>
+</head>
+<script src="http://static.bimface.com/developer/libs/jquery.js"></script>
+<script type="text/javascript" src="ajaxfileupload.js?1111"></script>
+    <link href="//static.bimface.com/developer/fonts/iconfont.css" rel="stylesheet" type="text/css">
+    <link rel="stylesheet" href="//resource.bimface.com/developer/css/20180614.developer.css">
+    <style>
+		.pagecount{
+			text-align: center;
+			margin-bottom: 5px;
+			padding:15px 15px 20px 0;
+		}
+		.pagecount span{
+			display: inline-block;
+			background: #ddd;
+			margin:0 0 0 5px;
+			width:100px;
+			text-align: center;
+			padding:2px 8px 2px 8px;
+			border:1px solid #eee;
+			color: #666;
+		}
+		.pagecount span a{
+			color:#333;
+		}
+		.pagecount span a:hover{
+			text-decoration: underline;
+		}
+	</style>
+<script>
+/**
+ * 异步上传图片
+ */ var ownUrl = 'http://biz.ulyncbiz.com/sample/bimfaceme.php';
+    $(function () {
+        $("#saveImg").click(function () {
+                //效验上传图片类型
+                var ths=$('#fileImg');
+                if (ths.val().length <= 0) {
+                    alert("请上传图片");
+                    return false;
+                } else if(!/\.(gif|jpg|jpeg|png|GIF|JPG|PNG|rvt)$/.test(ths.val())){
+                    alert("图片类型必须是.gif,jpeg,jpg,png中的一种");
+                    ths.val("");
+                    return false;
+                }
+                //效验成功调用异步上传函数
+                ajaxFileUpload();
+                return true;
+        })
+		
+		var curPage = 1; //当前页码
+		var total,pageSize,totalPage; //总记录数，每页显示数，总页数
+		init(1);
+		$("#pagecount").on('click','span a',function(){
+			var rel = $(this).attr("rel");
+			if(rel){
+				init(rel);
+			}
+		});
+		
+		// 初始化列表
+		function init(page){
+			$.ajax({
+				type: "GET",
+				url: ownUrl,
+				data: {"fun":"getBims","page":page},
+				dataType: "jsonp",
+				jsonp: "callback",
+				success: function (res) {
+					total = res.total;
+					pageSize = 20;
+					curPage = page;
+					totalPage = res.totalPage;
+					var html = '';
+					$.each(res.data,function(index,obj){
+						var istranslate = '否';
+						if(obj.istranslate == 1){
+							istranslate = '是';
+						}
+						var translateYN = '发起转换';
+						if(obj.status == 'success'){
+							translateYN = '<a href="http://biz.ulyncbiz.com/sample/bim2TB.html?fid='+obj.fileId+'" target="_blank">查看模型</a> <a href="http://biz.ulyncbiz.com/sample/bim3TB.html?fid='+obj.fileId+'" target="_blank">查看设备</a>';
+						}
+						html +='<tr class=""><td><input type="checkbox" class="btn_select"></td> <td class="text-align-left">'+ obj.filename +
+								'<br> <i class="sub">fileId:</i>'+ obj.fileId +
+								'</td> <td>'+ (obj.size / 1024).toFixed(2) +'KB</td> <td><span class="success">上传成功</span></td> <td>'+ obj.times +'</td> <td><span id="istranslate">'+ istranslate +'</span> <i id="status">'+ obj.status +'</i></td> <td><a class="link">下载</a> <a class="link" val="'+ obj.fileId +'">'+ translateYN +'</a> <a class="link">删除</a></td></tr>';
+					});
+					$('#bimlist').html("");
+					$('#bimlist').append(html);
+					
+					$('.link').on('click',function(){
+					    var that = $(this);
+						$.ajax({
+							type: "POST",
+							url: ownUrl,
+							data: {"fun":"translateBim","id":$(this).attr("val")},
+							dataType: "jsonp",
+							jsonp: "callback",
+							success: function (res) {
+								if(res.code == 'success'){
+									//console.log(res);
+									that.parent().parent().find('#istranslate').html("是");
+									that.parent().parent().find('#status').html(res.data.status);
+									if(res.data.status != 'success'){
+										setInterval(
+											function(){
+												$.ajax({
+													type: "GET",
+													url: ownUrl,
+													data: {"fun":"translateStatus","id":$(this).attr("val")},
+													dataType: "jsonp",
+													jsonp: "callback",
+													success: function (res) {
+														$(this).parent().parent().find('#status').html("");
+														$(this).parent().parent().find('#status').html(res.data.status);
+													}
+												});
+											},1000);
+									}else{
+										init(1);
+									}
+								}
+							}
+						});
+					});
+				},complete:function(){ //生成分页条
+					getPageBar();
+				}
+			});
+		}
+		
+		
+		    //获取分页条
+		function getPageBar(){
+			$("#pagecount").find('*').remove();
+			//页码大于最大页数
+			if(curPage>totalPage) curPage=totalPage;
+			//页码小于1
+			if(curPage<1) curPage=1;
+			pageStr = "<span>共"+total+"条</span><span>"+curPage+"/"+totalPage+"</span>";
+			 
+			//如果是第一页
+			if(curPage==1){
+				pageStr += "<span>首页</span><span>上一页</span>";
+			}else{
+				pageStr += "<span><a href='javascript:void(0)' rel='1'>首页</a></span><span><a href='javascript:void(0)' rel='"+(curPage-1)+"'>上一页</a></span>";
+			}
+			 
+			//如果是最后页
+			if(curPage>=totalPage){
+				pageStr += "<span>下一页</span><span>尾页</span>";
+			}else{
+				pageStr += "<span><a href='javascript:void(0)' rel='"+(parseInt(curPage)+1)+"'>下一页</a></span><span><a href='javascript:void(0)' rel='"+totalPage+"'>尾页</a></span>";
+			}  
+			$("#pagecount").append(pageStr);
+		}
+		
+    })
+/**
+ * ajaxFileUpload    JQuery异步上传插件
+ */
+    function ajaxFileUpload() {
+        $.ajaxFileUpload
+        (
+            {
+                url: "http://biz.ulyncbiz.com/sample/upfile.php", //用于文件上传的服务器端请求地址
+                type: 'post',
+                data: {"sf":"sf"},
+                dataType: 'json', //返回值类型 一般设置为json		
+                secureuri: false, //是否需要安全协议，一般设置为false
+                fileElementId: 'fileImg', //文件上传域的ID
+                success: function (data, status)  //服务器成功响应处理函数
+                {
+                    var data=JSON.parse(data.responseText);
+					console.log(data);
+                    if (typeof (data.error) != 'undefined') {
+						if (data.error != '') {
+							alert(data.error);
+						} else {
+							$("#img1").attr("src", "http://biz.ulyncbiz.com/sample/"+data.imgurl);
+						}
+					}
+                },
+                error: function (data, status, e)//服务器响应失败处理函数
+                {
+                    var data=JSON.parse(data.responseText);
+					console.log(data);
+					if (typeof (data.error) != 'undefined') {
+						if (data.error != '') {
+							alert(data.error);
+						} else {
+						    $.ajax({
+								type: "POST",
+								url: ownUrl,
+								data: {"fun":"insertBims","originname":data.originname,"filename":data.filename,"path":data.imgurl,"size":data.size},
+								dataType: "jsonp",
+								jsonp: "callback",
+								async : false,
+								success: function (res) {
+									if(res.code == "success"){
+										if(res.data){
+											init(1);
+										}
+									}
+								}
+							});
+							//$("#img1").attr("src", "http://biz.ulyncbiz.com/sample/"+data.imgurl);
+						}
+					}
+							
+							
+							
+				}
+			}
+		)
+		
+		
+		var curPage = 1; //当前页码
+		var total,pageSize,totalPage; //总记录数，每页显示数，总页数
+		
+		$("#pagecount").on('click','span a',function(){
+			var rel = $(this).attr("rel");
+			if(rel){
+				init(rel);
+			}
+		});
+		
+		// 初始化列表
+		function init(page){
+			$.ajax({
+				type: "GET",
+				url: ownUrl,
+				data: {"fun":"getBims","page":page},
+				dataType: "jsonp",
+				jsonp: "callback",
+				success: function (res) {
+					total = res.total;
+					pageSize = 20;
+					curPage = page;
+					totalPage = res.totalPage;
+					var html = '';
+					$.each(res.data,function(index,obj){
+						var istranslate = '否';
+						if(obj.istranslate == 1){
+							istranslate = '是';
+						}
+						var translateYN = '发起转换';
+						if(obj.status == 'success'){
+							translateYN = '<a href="http://biz.ulyncbiz.com/sample/bim2TB.html?fid='+obj.fileId+'" target="_blank">查看模型</a> <a href="http://biz.ulyncbiz.com/sample/bim3TB.html?fid='+obj.fileId+'" target="_blank">查看设备</a>';
+						}
+						html +='<tr class=""><td><input type="checkbox" class="btn_select"></td> <td class="text-align-left">'+ obj.filename +
+								'<br> <i class="sub">fileId:</i>'+ obj.fileId +
+								'</td> <td>'+ (obj.size / 1024).toFixed(2) +'KB</td> <td><span class="success">上传成功</span></td> <td>'+ obj.times +'</td> <td><span id="istranslate">'+ istranslate +'</span> <i id="status">'+ obj.status +'</i></td> <td><a class="link">下载</a> <a class="link" val="'+ obj.fileId +'">'+ translateYN +'</a> <a class="link">删除</a></td></tr>';
+					});
+					$('#bimlist').html("");
+					$('#bimlist').append(html);
+					
+					$('.link').on('click',function(){
+					var that = $(this);
+						$.ajax({
+							type: "POST",
+							url: ownUrl,
+							data: {"fun":"translateBim","id":$(this).attr("val")},
+							dataType: "jsonp",
+							jsonp: "callback",
+							success: function (res) {
+								if(res.code == 'success'){
+									that.parent().parent().find('#istranslate').html("是");
+									that.parent().parent().find('#status').html(res.data.status);
+									if(res.data.status != 'success'){
+										setInterval(
+											function(){
+												$.ajax({
+													type: "GET",
+													url: ownUrl,
+													data: {"fun":"translateStatus","id":$(this).attr("val")},
+													dataType: "jsonp",
+													jsonp: "callback",
+													success: function (res) {
+														$(this).parent().parent().find('#status').html("");
+														$(this).parent().parent().find('#status').html(res.data.status);
+													}
+												});
+											},1000);
+									}else{
+										init(1);
+									}
+								}
+							}
+						});
+					});
+				},complete:function(){ //生成分页条
+					getPageBar();
+				}
+			});
+		}
+		
+		
+		    //获取分页条
+		function getPageBar(){
+			$("#pagecount").find('*').remove();
+			//页码大于最大页数
+			if(curPage>totalPage) curPage=totalPage;
+			//页码小于1
+			if(curPage<1) curPage=1;
+			pageStr = "<span>共"+total+"条</span><span>"+curPage+"/"+totalPage+"</span>";
+			 
+			//如果是第一页
+			if(curPage==1){
+				pageStr += "<span>首页</span><span>上一页</span>";
+			}else{
+				pageStr += "<span><a href='javascript:void(0)' rel='1'>首页</a></span><span><a href='javascript:void(0)' rel='"+(curPage-1)+"'>上一页</a></span>";
+			}
+			 
+			//如果是最后页
+			if(curPage>=totalPage){
+				pageStr += "<span>下一页</span><span>尾页</span>";
+			}else{
+				pageStr += "<span><a href='javascript:void(0)' rel='"+(parseInt(curPage)+1)+"'>下一页</a></span><span><a href='javascript:void(0)' rel='"+totalPage+"'>尾页</a></span>";
+			}  
+			$("#pagecount").append(pageStr);
+		}
+        return false;
+	}
+</script>
+
+    <input type="file" name="file" id="fileImg" />
+    <input type="hidden" name="sf" value="sf"/>
+    <input type="button" value="上传" name="sub" id="saveImg" />
+    <img id="img1" src="" />
+	<div id="pagecount"class="pagecount"></div>
+	<div>
+	
+	<table cellspacing="0" cellpadding="0" class="table-list">
+	<thead><tr><th width="30"><input type="checkbox" class="btn_selectAll"></th> <th>名称</th> <th width="100">大小</th> <th width="100">上传状态</th> <th width="180">上传时间</th> <th width="110">是否发起转换</th> <th width="150">操作</th></tr></thead> 
+	<tbody id="bimlist">
+			</tbody></table>
+	</div>
+	<div id="pagecount"class="pagecount"></div>
+  </body>
+</html>
